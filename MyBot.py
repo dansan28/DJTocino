@@ -5,6 +5,7 @@ from discord import app_commands
 from dotenv import load_dotenv
 import yt_dlp
 import asyncio
+import platform
 
 from collections import defaultdict
 
@@ -24,6 +25,8 @@ def _extract(query, ydl_opts):
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.guilds = True
+intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -50,8 +53,10 @@ async def on_ready():
 
 
 @bot.event
-async def on_message(msg):    #Esto es temporal para imprimir el id del server cuando se manda un mensaje
+async def on_message(msg):
     print(msg.guild.id)
+    await bot.process_commands(msg)
+
 
 
 
@@ -98,18 +103,26 @@ async def play(interaction: discord.Interaction, song_query: str):
     audio_url = first_track["url"]
     title = first_track.get("title", "Untitled")
 
-    ffmpeg_options = {
-            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": "-vn -c:a libopus -b:a 96k",
-    }
 
     
 
 
 
+    ffmpeg_options = {
+    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+    "options": "-vn -c:a libopus -b:a 96k",
+}
+
+    # Detectar si estás en Windows (local) o Linux (Railway)
+    if platform.system() == "Windows":
+        ffmpeg_path = os.path.join(os.path.dirname(__file__), "bin", "ffmpeg", "ffmpeg.exe")
+    else:
+        ffmpeg_path = "ffmpeg"
 
 
-    ffmpeg_path = os.path.join(os.path.dirname(__file__), "bin", "ffmpeg", "ffmpeg.exe")
+
+    
+
 
 
 
@@ -118,16 +131,19 @@ async def play(interaction: discord.Interaction, song_query: str):
 
     # Función para reproducir la siguiente canción
     def play_next(error=None):
-        if queues[interaction.guild.id]:
-            next_track = queues[interaction.guild.id].pop(0)
-            source = discord.FFmpegOpusAudio(
-                next_track["url"],
-                **ffmpeg_options,
-                executable=ffmpeg_path
-            )
-            voice_client.play(source, after=play_next)
-        else:
-            print("La cola ha terminado")
+        try:
+            if queues[interaction.guild.id]:
+                next_track = queues[interaction.guild.id].pop(0)
+                source = discord.FFmpegOpusAudio(
+                    next_track["url"],
+                    **ffmpeg_options,
+                    executable=ffmpeg_path
+                )
+                voice_client.play(source, after=play_next)
+            else:
+                print("La cola ha terminado")
+        except Exception as e:
+            print("Error en play_next:", e)
 
     # Iniciar reproducción si no hay nada sonando
     if not voice_client.is_playing():
@@ -137,6 +153,7 @@ async def play(interaction: discord.Interaction, song_query: str):
         await interaction.followup.send(f"Agregada a la cola: **{title}**")
 
 
+@bot.tree.command(name="queue", description="Muestra la cola de reproducción")
 async def queue_cmd(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     queue_list = queues[guild_id]
@@ -145,9 +162,9 @@ async def queue_cmd(interaction: discord.Interaction):
         await interaction.response.send_message("La cola esta vacia")
         return
     
-    msg = "Canciones en cola:**\n"
+    msg = "**Canciones en cola:**\n"
     for i, track in enumerate(queue_list, start=1):
-        title = track.get("Title", "Sin titulo")
+        title = track.get("title", "Sin titulo")
         msg += f"{i}. {title}\n"
 
     if len(msg) > 1900:
