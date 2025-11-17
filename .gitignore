@@ -1,0 +1,34 @@
+# Entorno virtual
+venv/
+env/
+dc_env/
+
+# Variables de entorno
+.env
+
+# Archivos de FFmpeg (¡muy pesados! No deben subirse)
+bin/
+ffmpeg/
+ffmpeg.exe
+*.dll
+
+# Archivos de sistema de Windows
+Thumbs.db
+Desktop.ini
+
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de logs
+*.log
+
+# Configuración de editor
+.vscode/
+.idea/
+
+# Archivos grandes generales
+*.zip
+*.rar
