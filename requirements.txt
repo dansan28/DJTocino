@@ -1,3 +1,5 @@
 discord.py
-python-dotenv
 yt-dlp
+python-dotenv
+ffmpeg-python
+pynacl
